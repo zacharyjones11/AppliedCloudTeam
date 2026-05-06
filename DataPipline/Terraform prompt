@@ -73,3 +73,13 @@ café website analytics system.
 - Do not hardcode account IDs or secrets anywhere
 
 Produce all files with full content, no placeholders.
+
+
+-----------------------------------------
+NOT PART OF THE PROMPT BUT GOOD INFO
+
+A few things worth noting as you use these:
+For the Terraform prompt, the userdata.sh approach means your infrastructure stands up automatically on terraform apply — you'll just need to SSH in afterward 
+to drop in the sample log files from the project (the access_log_geo.log).
+For the frontend, the settings drawer approach avoids hardcoding credentials while keeping it simple enough for a lab environment. If you later want to make it production-safe,
+you'd swap the key-based auth for Cognito Identity Pool credentials — worth mentioning that to the agent as a follow-up.
