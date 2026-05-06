@@ -1,0 +1,75 @@
+You are a senior AWS infrastructure engineer. Build a complete, production-ready 
+Terraform script that provisions the following clickstream data pipeline for a 
+café website analytics system.
+
+## Architecture to provision
+
+### Networking
+- VPC with a single public subnet
+- Internet gateway attached to the VPC
+- Route table directing 0.0.0.0/0 to the internet gateway
+- Security group allowing inbound TCP 80 (HTTP) and TCP 22 (SSH) from anywhere,
+  and all outbound traffic
+
+### Compute
+- EC2 instance (Amazon Linux 2, t3.micro) in the public subnet
+- Attach the security group above
+- Attach an IAM instance profile (see IAM section below)
+- Use a user_data script that does the following on first boot:
+    1. Install Apache httpd and PHP
+    2. Install the amazon-cloudwatch-agent via yum
+    3. Create directories /var/log/www/access and /var/log/www/error
+    4. Write a CloudWatch agent config to 
+       /opt/aws/amazon-cloudwatch-agent/bin/config.json that:
+         - Collects /var/log/www/access/access_log into log group "apache/access"
+         - Collects /var/log/www/error/error_log into log group "apache/error"
+         - Sets log retention to 180 days
+    5. Patch /etc/httpd/conf/httpd.conf to:
+         - Set ErrorLog to /var/log/www/error/error_log
+         - Add ErrorLogFormat as JSON
+         - Add a "cloudwatch" LogFormat in JSON with fields: time, process,
+           filename, remoteIP, host, request, query, method, status, 
+           userAgent, referer
+         - Add CustomLog pointing to /var/log/www/access/access_log using 
+           the cloudwatch format
+    6. Start and enable httpd
+    7. Start the CloudWatch agent using the config.json above
+
+### IAM
+- IAM role with EC2 trust policy
+- Attach AWS managed policies:
+    - CloudWatchAgentServerPolicy
+    - AmazonSSMManagedInstanceCore
+    - AmazonS3FullAccess
+- Instance profile wrapping the role
+
+### S3
+- S3 bucket named "cafe-clickstream-logs-<random_suffix>" 
+- Enable versioning
+- Block all public access
+- Output the bucket name
+
+### CloudWatch
+- CloudWatch log group "apache/access" with 180-day retention
+- CloudWatch log group "apache/error" with 180-day retention
+- CloudWatch dashboard named "cafe-dashboard" with a JSON body containing 
+  four widgets:
+    1. Pie chart — top 10 cities visiting /cafe/menu.php
+    2. Logs table — top 10 cities ordering via /cafe/processOrder.php
+    3. Pie chart — top 10 regions visiting /cafe
+    4. Bar chart — top 10 regions ordering via /cafe/processOrder.php
+  Each widget should query the "apache/access" log group.
+
+## Requirements
+- Use Terraform >= 1.5, AWS provider >= 5.0
+- Region: us-east-1, configurable via variable
+- Use a variables.tf for: aws_region, instance_type, your_ip_cidr
+- Use an outputs.tf that exposes: ec2_public_ip, s3_bucket_name, 
+  cloudwatch_dashboard_url
+- Split into files: main.tf, variables.tf, outputs.tf, iam.tf, 
+  userdata.sh (templatefile)
+- Add a README.md block at the top of main.tf explaining apply order 
+  and any manual post-steps (e.g. uploading sample logs)
+- Do not hardcode account IDs or secrets anywhere
+
+Produce all files with full content, no placeholders.
